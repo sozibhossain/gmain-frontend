@@ -63,6 +63,7 @@ export function CreateProductForm({
   const router = useRouter();
   const session = useSession();
   const farmId = session.data?.user.farm;
+  console.log("FFFFFFFFFFFF", farmId)
   const token = session.data?.accessToken;
 
   const fetchCategories = useCallback(async () => {

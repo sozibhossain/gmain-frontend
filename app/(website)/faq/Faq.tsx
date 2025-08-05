@@ -9,6 +9,12 @@ export default function Faq() {
   const faqs = [
     {
       id: "item-1",
+      question: "Is there a fee to join?",
+      answer:
+        "No, joining our platform is completely free. You can create an account and start using our basic features at no cost.",
+    },
+    {
+      id: "item-2",
       question: "How do I sign up?",
       answer: (
         <div className="space-y-2">
@@ -38,12 +44,7 @@ export default function Faq() {
         </div>
       ),
     },
-    {
-      id: "item-2",
-      question: "Is there a fee to join?",
-      answer:
-        "No, joining our platform is completely free. You can create an account and start using our basic features at no cost.",
-    },
+    
     {
       id: "item-3",
       question: "What payment methods are accepted?",

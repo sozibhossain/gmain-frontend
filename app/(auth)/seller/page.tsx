@@ -14,6 +14,7 @@ import dynamic from "next/dynamic"; // Import dynamic
 import Link from "next/link";
 import { Navbar } from "@/components/sheard/Navbar";
 import { Footer } from "@/components/sheard/Footer";
+import { signIn } from "next-auth/react";
 
 // Dynamically import MapModal with ssr: false
 const MapModal = dynamic(() => import("./_component/MapModal"), { ssr: false });
@@ -109,14 +110,17 @@ export default function SellerPage() {
   // Existing handleSubmit function with location validation
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!formData.farmName) {
       toast.error("Please enter your farm name");
       return;
     }
+
     if (!sellerRegisterId) {
       toast.error("Seller registration ID is required");
       return;
     }
+
     if (latitude === null || longitude === null || !placeName) {
       toast.error("Please select your farm location");
       setLocationError(
@@ -124,7 +128,9 @@ export default function SellerPage() {
       );
       return;
     }
+
     setIsLoading(true);
+
     try {
       const submitData = new FormData();
       submitData.append("farmName", formData.farmName);
@@ -158,10 +164,42 @@ export default function SellerPage() {
           body: submitData,
         }
       );
+
       const result = await response.json();
+
       if (response.ok && result.success) {
         toast.success("Farm profile created successfully!");
-        router.push("/login");
+
+        // Try auto-login using stored credentials
+        const email = sessionStorage.getItem("email");
+        const password = sessionStorage.getItem("password");
+
+        if (email && password) {
+          const signInResult = await signIn("credentials", {
+            email,
+            password,
+            redirect: false,
+          });
+
+          if (signInResult?.error) {
+            toast.error(
+              "Farm created, but login failed. Please log in manually."
+            );
+            router.push("/login");
+          } else {
+            toast.success("You're now logged in!");
+            router.push("/dashboard");
+          }
+
+          // Clear credentials from storage
+          sessionStorage.removeItem("email");
+          sessionStorage.removeItem("password");
+        } else {
+          toast.warning(
+            "Farm created, but login skipped (credentials missing)."
+          );
+          router.push("/login");
+        }
       } else {
         toast.error(result.message || "Failed to create farm profile");
       }
@@ -170,7 +208,6 @@ export default function SellerPage() {
       toast.error("An error occurred while setting up your farm profile");
     } finally {
       setIsLoading(false);
-      router.push("/dashboard");
     }
   };
 

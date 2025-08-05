@@ -86,7 +86,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <h1 className="text-4xl font-bold mb-4">Welcome to Our Site Name</h1>
+          <h1 className="text-4xl font-bold mb-4">Welcome to Table Fresh</h1>
           <p className="text-lg opacity-90 text-center">
             Discover fresh, local produce from farms around the world
           </p>

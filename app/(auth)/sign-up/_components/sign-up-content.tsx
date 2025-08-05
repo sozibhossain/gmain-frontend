@@ -20,6 +20,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
+import Image from "next/image";
 
 export default function RegisterContent() {
   const [showPassword, setShowPassword] = useState(false);
@@ -52,7 +53,6 @@ export default function RegisterContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation checks
     if (formData.password !== formData.confirmPassword) {
       toast.error("Passwords do not match");
       return;
@@ -82,7 +82,6 @@ export default function RegisterContent() {
         }),
       };
 
-      // Step 1: Register the user
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/auth/register`,
         {
@@ -99,18 +98,24 @@ export default function RegisterContent() {
       if (response.ok) {
         toast.success("Registration successful!");
 
-        // Store seller ID if needed
         if (data.data?._id && userType === "seller") {
           document.cookie = `sellerRegisterId=${
             data.data._id
           }; path=/; max-age=${60 * 60 * 24}`;
+
+          // Store login credentials in sessionStorage for later login
+          sessionStorage.setItem("email", formData.email);
+          sessionStorage.setItem("password", formData.password);
+
+          router.push("/seller");
+          return;
         }
 
-        // Step 2: Automatically sign in the user using NextAuth
+        // Auto-login for buyers only
         const signInResult = await signIn("credentials", {
           email: formData.email,
           password: formData.password,
-          redirect: false, // Don't redirect automatically
+          redirect: false,
         });
 
         if (signInResult?.error) {
@@ -120,10 +125,7 @@ export default function RegisterContent() {
           router.push("/login");
         } else {
           toast.success("Welcome! You're now logged in.");
-          // Redirect based on user type
-          if (userType === "seller") {
-            router.push("/seller");
-          }
+          router.push("/dashboard");
         }
       } else {
         toast.error(data.message || "Registration failed");
@@ -143,7 +145,7 @@ export default function RegisterContent() {
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: "url('/placeholder.svg?height=800&width=600')",
+            backgroundImage: "url('/asset/authentication.jpg')",
           }}
         >
           <div className="absolute inset-0 bg-black/40" />
@@ -151,9 +153,13 @@ export default function RegisterContent() {
         <div className="container relative z-10 flex flex-col justify-center items-center p-12 text-white">
           <div className="mb-8 backdrop-blur-[50px] bg-white/23 shadow-[0px_4px_4px_0px_rgba(93,93,93,0.25)] p-5 rounded-[16px]">
             <div className="flex items-start gap-2">
-              <div className="h-[53px] w-[40px] bg-green-600 rounded flex items-center justify-center">
-                <span className="text-white font-bold text-xl">T</span>
-              </div>
+              <Image
+                src="/asset/logo.png"
+                width={40}
+                height={53}
+                alt="Table Fresh Logo"
+                className="h-[53px] w-[40px]"
+              />
               <div className="flex flex-col">
                 <div className="">
                   <p className="text-[16px] font-semibold text-black">TABLE</p>
