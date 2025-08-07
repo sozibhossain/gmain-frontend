@@ -103,9 +103,9 @@ const FarmsCard: React.FC<FarmsCardProps> = ({
       <Button
         onClick={handleStartChat}
         disabled={loading}
-        className="bg-white w-[50px] h-[50px] rounded-full absolute top-4 right-4 flex items-center justify-center shadow-lg cursor-pointer hover:bg-gray-50 transition-colors z-10"
+        className="bg-white w-[40px] h-[40px] rounded-full absolute top-4 right-4 flex items-center justify-center shadow-lg cursor-pointer hover:bg-gray-50 transition-colors z-10"
       >
-        <MessageCircle className="!w-8 !h-8 text-[#595959]" />
+        <MessageCircle className="!w-6 !h-6 text-green-600" />
       </Button>
 
       {/* Link wrapper */}

@@ -173,12 +173,7 @@ export function Navbar() {
     { name: "Blog", href: "/blog" },
     { name: "FAQ", href: "/faq" },
     { name: "Contact", href: "/contact" },
-  ].filter(
-    (link) =>
-      link.href !== "/become-seller" ||
-      !isLoggedIn ||
-      (isLoggedIn && userRole !== "seller")
-  );
+  ];
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
