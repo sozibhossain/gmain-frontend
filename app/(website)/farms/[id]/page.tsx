@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { MapContainer, TileLayer, Circle, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Circle } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
 interface Product {
@@ -222,7 +222,6 @@ export default function FarmPage() {
   const products = data.data.product;
   const position = [farm.latitude, farm.longitude] as [number, number];
 
-
   // if (typeof farm.latitude !== "number" || typeof farm.longitude !== "number") {
   //   return <p>Invalid coordinates provided for the map.</p>;
   // }
@@ -327,9 +326,9 @@ export default function FarmPage() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
 
-                  <Marker position={position}>
+                  {/* <Marker position={position}>
                     <Popup>{farm.name}</Popup>
-                  </Marker>
+                  </Marker> */}
 
                   <Circle
                     center={position}

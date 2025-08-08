@@ -1,8 +1,7 @@
 "use client";
-
 import type React from "react";
 import { useState, useEffect, useCallback } from "react";
-import { X, Upload } from "lucide-react";
+import { X, Upload, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +27,14 @@ interface Category {
 interface Media {
   url: string;
   public_id?: string;
+  type?: "image" | "video";
+}
+
+interface MediaPreview {
+  url: string;
+  public_id?: string;
+  type: "image" | "video";
+  file?: File;
 }
 
 interface CreateProductFormProps {
@@ -52,18 +59,15 @@ export function CreateProductForm({
   const [thumbnail, setThumbnail] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string>("");
   const [media, setMedia] = useState<File[]>([]);
-  const [mediaPreviews, setMediaPreviews] = useState<
-    { url: string; public_id?: string }[]
-  >([]);
+  const [mediaPreviews, setMediaPreviews] = useState<MediaPreview[]>([]);
   const [deletedMedia, setDeletedMedia] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchingProduct, setFetchingProduct] = useState(false);
-
   const isEditing = !!productId;
   const router = useRouter();
   const session = useSession();
   const farmId = session.data?.user.farm;
-  console.log("FFFFFFFFFFFF", farmId)
+  console.log("FFFFFFFFFFFF", farmId);
   const token = session.data?.accessToken;
 
   const fetchCategories = useCallback(async () => {
@@ -98,7 +102,6 @@ export function CreateProductForm({
         }
       );
       const data = await response.json();
-
       if (data.success) {
         const product = data.data;
         setFormData({
@@ -116,6 +119,7 @@ export function CreateProductForm({
             product.media.map((mediaItem: Media) => ({
               url: mediaItem.url,
               public_id: mediaItem.public_id,
+              type: mediaItem.type || "image", // Default to image if type is not specified
             }))
           );
         }
@@ -151,17 +155,27 @@ export function CreateProductForm({
     }
   };
 
+  const getFileType = (file: File): "image" | "video" => {
+    return file.type.startsWith("video/") ? "video" : "image";
+  };
+
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
       setMedia((prev) => [...prev, ...files]);
 
       files.forEach((file) => {
+        const fileType = getFileType(file);
         const reader = new FileReader();
         reader.onload = () => {
           setMediaPreviews((prev) => [
             ...prev,
-            { url: reader.result as string, public_id: undefined },
+            {
+              url: reader.result as string,
+              public_id: undefined,
+              type: fileType,
+              file: file,
+            },
           ]);
         };
         reader.readAsDataURL(file);
@@ -169,7 +183,7 @@ export function CreateProductForm({
     }
   };
 
-  const removeMediaImage = (index: number) => {
+  const removeMediaItem = (index: number) => {
     setMedia((prev) => prev.filter((_, i) => i !== index));
     const removedMedia = mediaPreviews[index];
     if (removedMedia.public_id) {
@@ -180,7 +194,6 @@ export function CreateProductForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (
       !formData.title ||
       !formData.price ||
@@ -198,7 +211,6 @@ export function CreateProductForm({
 
     try {
       setLoading(true);
-
       const formDataToSend = new FormData();
       formDataToSend.append("title", formData.title);
       formDataToSend.append("price", formData.price);
@@ -209,6 +221,7 @@ export function CreateProductForm({
       if (formData.description) {
         formDataToSend.append("description", formData.description);
       }
+
       if (thumbnail) {
         formDataToSend.append("thumbnail", thumbnail);
       }
@@ -226,7 +239,6 @@ export function CreateProductForm({
       const url = isEditing
         ? `${process.env.NEXT_PUBLIC_API_URL}/seller/products/${productId}`
         : `${process.env.NEXT_PUBLIC_API_URL}/seller/products`;
-
       const method = isEditing ? "PATCH" : "POST";
 
       const response = await fetch(url, {
@@ -238,12 +250,11 @@ export function CreateProductForm({
       });
 
       const data = await response.json();
-
       if (data.success) {
         toast.success(
           isEditing
             ? "Product updated successfully"
-            : "Product has been created successfully",
+            : "Product has been created successfully"
         );
         onSuccess();
         if (!isEditing) {
@@ -302,7 +313,6 @@ export function CreateProductForm({
                   required
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">Price (₦) *</Label>
@@ -329,7 +339,6 @@ export function CreateProductForm({
                   />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="description">Product Details</Label>
                 <Textarea
@@ -343,7 +352,7 @@ export function CreateProductForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label>Product Media</Label>
+                <Label>Product Media (Images & Videos)</Label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
                   <div className="space-y-2">
                     <Upload className="mx-auto h-8 w-8 text-gray-400" />
@@ -352,47 +361,63 @@ export function CreateProductForm({
                         htmlFor="media"
                         className="cursor-pointer text-blue-600 hover:text-blue-500"
                       >
-                        Upload additional images
+                        Upload images and videos
                       </Label>
                       <Input
                         id="media"
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/*"
                         multiple
                         className="hidden"
                         onChange={handleMediaChange}
                       />
                     </div>
                     <p className="text-xs text-gray-500">
-                      Select multiple images (JPG or PNG)
+                      Select multiple files (JPG, PNG, MP4, MOV, etc.)
                     </p>
                   </div>
                 </div>
-
                 {mediaPreviews.length > 0 && (
                   <div className="mt-4">
                     <Label className="text-sm font-medium">
-                      Selected Images ({mediaPreviews.length})
+                      Selected Media ({mediaPreviews.length})
                     </Label>
-                    <div className="grid grid-cols-4 gap-3 mt-2">
+                    <div className="grid grid-cols-3 gap-3 mt-2">
                       {mediaPreviews.map((preview, index) => (
                         <div
                           key={index}
                           className="relative group rounded-lg overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
                         >
-                          <Image
-                            src={preview.url || "/placeholder.svg"}
-                            alt={`Product image ${index + 1}`}
-                            className="w-full h-32 object-cover"
-                            width={150}
-                            height={150}
-                          />
+                          {preview.type === "video" ? (
+                            <div className="relative">
+                              <video
+                                src={preview.url}
+                                className="w-full h-32 object-cover"
+                                controls={false}
+                                muted
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30">
+                                <Play className="h-8 w-8 text-white" />
+                              </div>
+                              <div className="absolute bottom-1 left-1 bg-black bg-opacity-70 text-white text-xs px-1 rounded">
+                                Video
+                              </div>
+                            </div>
+                          ) : (
+                            <Image
+                              src={preview.url || "/placeholder.svg"}
+                              alt={`Product media ${index + 1}`}
+                              className="w-full h-32 object-cover"
+                              width={150}
+                              height={150}
+                            />
+                          )}
                           <Button
                             type="button"
                             variant="destructive"
                             size="sm"
                             className="absolute top-2 right-2 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-full"
-                            onClick={() => removeMediaImage(index)}
+                            onClick={() => removeMediaItem(index)}
                           >
                             <X className="h-4 w-4" />
                           </Button>
@@ -403,7 +428,6 @@ export function CreateProductForm({
                 )}
               </div>
             </div>
-
             <div className="col-span-2 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
@@ -426,7 +450,6 @@ export function CreateProductForm({
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="space-y-2">
                 <Label>Product Thumbnail Image</Label>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
@@ -512,10 +535,9 @@ export function CreateProductForm({
                 ) : isEditing ? (
                   "Update Product"
                 ) : (
-                  "Submit for Approval"
+                  "Create Product"
                 )}
               </Button>
-
               {!farmId && (
                 <p className="text-sm text-red-500">
                   Farm information is missing. Please ensure your account is
