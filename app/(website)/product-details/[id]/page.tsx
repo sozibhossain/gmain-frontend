@@ -1,7 +1,5 @@
-
 "use client";
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -28,11 +26,126 @@ import {
   Shield,
   Minus,
   Plus,
+  Play,
+  Pause,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 
-async function fetchProduct(id) {
+// Type definitions
+interface Location {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
+interface Farm {
+  _id: string;
+  name: string;
+  location: Location;
+  isOrganic: boolean;
+  status: string;
+  description: string;
+  images: Array<{
+    public_id: string;
+    url: string;
+    _id: string;
+  }>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  videos: any[];
+  seller: string;
+  longitude: number;
+  latitude: number;
+  code: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  review: any[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Category {
+  _id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface MediaItem {
+  public_id: string;
+  url: string;
+  type: "video" | "photo";
+  _id: string;
+}
+
+interface Thumbnail {
+  public_id: string;
+  url: string;
+}
+
+interface Review {
+  user: {
+    name?: string;
+    username?: string;
+    avatar?: {
+      url: string;
+    };
+  };
+  rating: number;
+  text: string;
+  date: string;
+}
+
+interface Product {
+  _id: string;
+  title: string;
+  price: number;
+  quantity: string;
+  category: Category;
+  description: string;
+  media: MediaItem[];
+  thumbnail: Thumbnail;
+  farm: Farm;
+  status: "active" | "inactive";
+  code: string;
+  review: Review[];
+  createdAt: string;
+  updatedAt: string;
+  weight?: string;
+}
+
+interface ProductResponse {
+  success: boolean;
+  message: string;
+  data: Product;
+}
+
+interface ReviewRequest {
+  review: string;
+  rating: number;
+  product: string;
+  token: string;
+}
+
+interface CartRequest {
+  productId: string;
+  quantity: number;
+  token: string;
+}
+
+interface MediaItemProps {
+  media:
+    | MediaItem
+    | { url: string; type: "photo" | "video"; public_id?: string };
+  alt: string;
+  className: string;
+  isMain?: boolean;
+  onClick?: () => void;
+}
+
+// API functions with proper typing
+async function fetchProduct(id: string): Promise<ProductResponse> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/user/product/${id}`
   );
@@ -42,7 +155,13 @@ async function fetchProduct(id) {
   return response.json();
 }
 
-async function postReview({ review, rating, product, token }) {
+async function postReview({
+  review,
+  rating,
+  product,
+  token,
+}: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ReviewRequest): Promise<any> {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/user/write-review`,
     {
@@ -60,24 +179,12 @@ async function postReview({ review, rating, product, token }) {
   return response.json();
 }
 
-
-export default function Page() {
-  const { id } = useParams();
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState("description");
-  const [showReviewModal, setShowReviewModal] = useState(false);
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewDescription, setReviewDescription] = useState("");
-  const { data: session } = useSession();
-  const token = session?.accessToken;
-
-  const [farmId, setFarmId] = useState("");
-
-
-async function addToCart({ productId, quantity, token }) {
+async function addToCart({
+  productId,
+  quantity,
+  token,
+}: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+CartRequest): Promise<any> {
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cart/add`, {
     method: "POST",
     headers: {
@@ -89,26 +196,131 @@ async function addToCart({ productId, quantity, token }) {
   if (!response.ok) {
     throw new Error("Failed to add to cart");
   }
-    await queryClient.invalidateQueries({ queryKey: ["cart"] });
   return response.json();
 }
 
+// Media Item Component for handling both images and videos
+function MediaItem({
+  media,
+  alt,
+  className,
+  isMain = false,
+  onClick,
+}: MediaItemProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [showPlayButton, setShowPlayButton] = useState(false);
+
+  const handleVideoClick = (e: React.MouseEvent) => {
+    if (media.type === "video") {
+      e.stopPropagation();
+      if (videoRef.current) {
+        if (isPlaying) {
+          videoRef.current.pause();
+          setIsPlaying(false);
+        } else {
+          videoRef.current.play();
+          setIsPlaying(true);
+        }
+      }
+    }
+    if (onClick) onClick();
+  };
+
+  const handleVideoLoad = () => {
+    if (videoRef.current && isMain) {
+      videoRef.current.play().catch(console.error);
+    }
+  };
+
+  if (media.type === "video") {
+    return (
+      <div
+        className={`relative ${className} cursor-pointer`}
+        onClick={handleVideoClick}
+        onMouseEnter={() => setShowPlayButton(true)}
+        onMouseLeave={() => setShowPlayButton(false)}
+      >
+        <video
+          ref={videoRef}
+          src={media.url}
+          className="w-full h-full object-cover"
+          autoPlay={isMain}
+          loop
+          muted
+          playsInline
+          onLoadedData={handleVideoLoad}
+        />
+        {/* Play/Pause overlay */}
+        {(showPlayButton || !isPlaying) && isMain && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity">
+            <div className="bg-white/80 rounded-full p-3">
+              {isPlaying ? (
+                <Pause className="h-6 w-6 text-gray-800" />
+              ) : (
+                <Play className="h-6 w-6 text-gray-800" />
+              )}
+            </div>
+          </div>
+        )}
+        {/* Video indicator for thumbnails */}
+        {!isMain && (
+          <div className="absolute top-2 right-2 bg-black/60 rounded px-1.5 py-0.5">
+            <Play className="h-3 w-3 text-white" />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={media.url || "/placeholder.svg"}
+      alt={alt}
+      fill={isMain}
+      width={isMain ? undefined : 1000}
+      height={isMain ? undefined : 1000}
+      className={className}
+      priority={isMain}
+      onClick={onClick}
+    />
+  );
+}
+
+export default function Page() {
+  const { id } = useParams();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [activeTab, setActiveTab] = useState<
+    "description" | "details" | "reviews"
+  >("description");
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewDescription, setReviewDescription] = useState("");
+  const { data: session } = useSession();
+  const token = session?.accessToken as string;
+  const [farmId, setFarmId] = useState("");
+
+  const productId = Array.isArray(id) ? id[0] : id;
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["product", id],
-    queryFn: () => fetchProduct(id),
-    enabled: !!id,
+    queryKey: ["product", productId],
+    queryFn: () => fetchProduct(productId as string),
+    enabled: !!productId,
   });
 
   const reviewMutation = useMutation({
     mutationFn: postReview,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["product", id] });
+      queryClient.invalidateQueries({ queryKey: ["product", productId] });
       setShowReviewModal(false);
       setReviewRating(0);
       setReviewDescription("");
       toast.success("Review posted successfully");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Error posting review:", error.message);
       toast.error("Failed to post review");
     },
@@ -117,16 +329,16 @@ async function addToCart({ productId, quantity, token }) {
   const cartMutation = useMutation({
     mutationFn: addToCart,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
       toast.success("Added to cart successfully");
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Error adding to cart:", error.message);
-      toast.error("Failed to add effect to cart");
+      toast.error("Failed to add to cart");
     },
   });
 
   const product = data?.data;
-
 
   // Set farmId when product changes
   useEffect(() => {
@@ -135,31 +347,45 @@ async function addToCart({ productId, quantity, token }) {
     }
   }, [product]);
 
-  // const images = product?.media?.map((item) => item.url) || [];
+  // Create media array with both images and videos, including thumbnail
+  const mediaItems: Array<{
+    url: string;
+    type: "photo" | "video";
+    public_id?: string;
+  }> = [
+    ...(product?.media || []),
+    ...(product?.thumbnail?.url
+      ? [
+          {
+            url: product.thumbnail.url,
+            type: "photo" as const,
+            public_id: product.thumbnail.public_id,
+          },
+        ]
+      : []),
+  ];
 
   const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    setCurrentImageIndex((prev) => (prev + 1) % mediaItems.length);
   };
-
-  
-const images = [
-  ...(product?.media?.map((item) => item.url) || []),
-  ...(product?.thumbnail?.url ? [product.thumbnail.url] : []),
-];
 
   const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    setCurrentImageIndex(
+      (prev) => (prev - 1 + mediaItems.length) % mediaItems.length
+    );
   };
 
-  const updateQuantity = (change) => {
+  const updateQuantity = (change: number) => {
     setQuantity(Math.max(1, quantity + change));
   };
 
   const handleSaveReview = () => {
+    if (!productId || !token) return;
+
     reviewMutation.mutate({
       review: reviewDescription,
       rating: reviewRating,
-      product: id,
+      product: productId,
       token,
     });
   };
@@ -170,8 +396,11 @@ const images = [
       router.push("/login");
       return;
     }
+
+    if (!productId || !token) return;
+
     cartMutation.mutate({
-      productId: id,
+      productId,
       quantity,
       token,
     });
@@ -183,14 +412,14 @@ const images = [
       router.push("/login");
       return;
     }
-    router.push(`/checkout?productId=${id}&quantity=${quantity}`);
+    router.push(`/checkout?productId=${productId}&quantity=${quantity}`);
   };
 
   if (isLoading) return <div className="text-center py-10">Loading...</div>;
   if (error)
     return (
       <div className="text-center py-10 text-red-500">
-        Error: {error.message}
+        Error: {(error as Error).message}
       </div>
     );
   if (!product)
@@ -200,62 +429,61 @@ const images = [
     <div className="mt-16">
       <div className="container mx-auto px-4 py-6 sm:py-8 shadow-md mb-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-10 mb-8">
-          {/* Image Gallery */}
-          
-
-<div className="space-y-4">
-  <div className="relative aspect-square w-full h-[200px] sm:h-[300px] lg:h-[353px] rounded-lg overflow-hidden">
-    <Image
-      src={images[currentImageIndex] || "/placeholder.svg"}
-      alt={product.title}
-      fill
-      className="object-cover"
-      priority
-    />
-    {/* Show navigation buttons only if there are multiple images */}
-    {images.length > 1 && (
-      <>
-        <Button
-          variant="outline"
-          size="icon"
-          className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white"
-          onClick={prevImage}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white"
-          onClick={nextImage}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </>
-    )}
-  </div>
-
-  {/* Thumbnails */}
-  <div className="grid grid-cols-4 gap-2">
-    {images.map((image, index) => (
-      <button
-        key={index}
-        onClick={() => setCurrentImageIndex(index)}
-        className={`rounded-lg overflow-hidden border-2 transition-colors ${
-          currentImageIndex === index ? "border-green-500" : "border-gray-200"
-        }`}
-      >
-        <Image
-          src={image || "/placeholder.svg"}
-          alt={`Thumbnail ${index + 1}`}
-          width={1000}
-          height={1000}
-          className="object-cover w-full h-[60px] sm:h-[80px] lg:h-[116px]"
-        />
-      </button>
-    ))}
-  </div>
-</div>
+          {/* Media Gallery */}
+          <div className="space-y-4">
+            <div className="relative aspect-square w-full h-[200px] sm:h-[300px] lg:h-[353px] rounded-lg overflow-hidden">
+              {mediaItems[currentImageIndex] && (
+                <MediaItem
+                  media={mediaItems[currentImageIndex]}
+                  alt={product.title}
+                  className="object-cover"
+                  isMain={true}
+                />
+              )}
+              {/* Show navigation buttons only if there are multiple media items */}
+              {mediaItems.length > 1 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white"
+                    onClick={prevImage}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white"
+                    onClick={nextImage}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
+            {/* Thumbnails */}
+            <div className="grid grid-cols-4 gap-2">
+              {mediaItems.map((media, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentImageIndex(index)}
+                  className={`relative rounded-lg overflow-hidden border-2 transition-colors ${
+                    currentImageIndex === index
+                      ? "border-green-500"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <MediaItem
+                    media={media}
+                    alt={`Thumbnail ${index + 1}`}
+                    className="object-cover w-full h-[60px] sm:h-[80px] lg:h-[116px]"
+                    isMain={false}
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Product Details */}
           <div className="space-y-6">
@@ -266,7 +494,6 @@ const images = [
               <p className="text-sm sm:text-base text-[#323232] font-normal underline mb-2">
                 {product.farm.name}
               </p>
-
               <div className="flex flex-wrap items-center gap-4 mb-4">
                 <div className="flex items-center gap-1 text-xs sm:text-sm text-[#707070]">
                   <MapPin className="h-4 w-4" />
@@ -286,7 +513,6 @@ const images = [
                   </span>
                 </div>
               </div>
-
               <div className="mb-6">
                 <div className="text-lg sm:text-xl font-semibold text-[#111827] mt-6 mb-1">
                   ${product.price} per box
@@ -299,7 +525,6 @@ const images = [
                 </Badge>
               </div>
             </div>
-
             {/* Quantity and Purchase */}
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-7">
@@ -310,7 +535,7 @@ const images = [
                   <div className="flex items-center border-[1px] border-[#595959] rounded-md">
                     <Button
                       variant="ghost"
-                      personally="sm"
+                      size="sm"
                       onClick={() => updateQuantity(-1)}
                       className="h-8 sm:h-10 w-8 sm:w-10 p-0"
                     >
@@ -338,7 +563,6 @@ const images = [
                   </div>
                 </div>
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <Button
                   className="bg-[#039B06] w-full h-10 sm:h-11 hover:bg-[#039B06]/80 text-white rounded text-sm sm:text-base"
@@ -354,7 +578,6 @@ const images = [
                 </Button>
               </div>
             </div>
-
             {/* Features */}
             <div className="space-y-3 pt-4 border-t">
               <div className="flex items-center gap-2 text-xs sm:text-sm text-[#595959] font-normal">
@@ -406,7 +629,6 @@ const images = [
                   Reviews
                 </button>
               </div>
-
               {/* Tab Content */}
               {activeTab === "description" && (
                 <div className="p-4 sm:p-6">
@@ -415,7 +637,6 @@ const images = [
                   </p>
                 </div>
               )}
-
               {activeTab === "details" && (
                 <div className="p-4 sm:p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
@@ -456,12 +677,11 @@ const images = [
                                 day: "2-digit",
                                 year: "numeric",
                               }
-                            ) || "05/09/2025"}
+                            )}
                           </span>
                         </div>
                       </div>
                     </div>
-
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-4 text-base sm:text-lg">
                         Farm Practices
@@ -474,13 +694,11 @@ const images = [
                   </div>
                 </div>
               )}
-
               {activeTab === "reviews" && (
                 <div className="p-4 sm:p-6 ">
                   <div className="space-y-6">
                     <div>
                       <Dialog
-                        className="!bg-black"
                         open={showReviewModal}
                         onOpenChange={setShowReviewModal}
                       >
@@ -522,7 +740,6 @@ const images = [
                                 ))}
                               </div>
                             </div>
-
                             {/* Description */}
                             <div>
                               <Label
@@ -542,7 +759,6 @@ const images = [
                                 className="mt-2 resize-none text-sm sm:text-base"
                               />
                             </div>
-
                             {/* Save Button */}
                             <Button
                               onClick={handleSaveReview}
@@ -557,7 +773,6 @@ const images = [
                         </DialogContent>
                       </Dialog>
                     </div>
-
                     <div>
                       {product.review.length === 0 ? (
                         <p className="text-gray-700 text-sm sm:text-base">
@@ -571,7 +786,8 @@ const images = [
                                 <AvatarImage
                                   src={
                                     review.user.avatar?.url ||
-                                    "/placeholder.svg?height=50&width=50"
+                                    "/placeholder.svg?height=50&width=50" ||
+                                    "/placeholder.svg"
                                   }
                                 />
                                 <AvatarFallback>
@@ -598,13 +814,14 @@ const images = [
                                     />
                                   ))}
                                   <span className="text-xs sm:text-sm text-gray-500 ml-3">
-                                    {new Date(
-                                      review.date
-                                    ).toLocaleDateString("en-US", {
-                                      month: "short",
-                                      day: "numeric",
-                                      year: "numeric",
-                                    })}
+                                    {new Date(review.date).toLocaleDateString(
+                                      "en-US",
+                                      {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      }
+                                    )}
                                   </span>
                                 </div>
                               </div>
@@ -623,7 +840,6 @@ const images = [
           </CardContent>
         </Card>
       </div>
-
       <FutureProduct farmId={farmId} />
     </div>
   );

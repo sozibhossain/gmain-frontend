@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  console.log("TTTTTTTTTTTTTTTTTT", token);
+  // console.log("TTTTTTTTTTTTTTTTTT", token);
 
   const publicRoutes = [
     "/login",

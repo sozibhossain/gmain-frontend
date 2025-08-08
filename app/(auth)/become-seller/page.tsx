@@ -1,6 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/sheard/Navbar";
 import { Footer } from "@/components/sheard/Footer";
 
@@ -51,6 +49,7 @@ export default function BecomeSellerPage() {
               </p>
             </div>
             <div className="order-1 md:order-2">
+              Who should sign up to sell
               <Image
                 src="/asset/seller/seller-2.png"
                 alt="Freshly baked bread and pastries"
@@ -184,13 +183,13 @@ export default function BecomeSellerPage() {
           </div>
         </div>
 
-        <div className="mt-12 flex justify-center">
+        {/* <div className="mt-12 flex justify-center">
           <Link href="/seller">
             <Button className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 text-lg cursor-pointer">
               Continue
             </Button>
           </Link>
-        </div>
+        </div> */}
       </div>
       <Footer />
     </div>
